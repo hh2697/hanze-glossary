@@ -99,3 +99,79 @@
 
   render();
 })();
+// === WIRING FIXES FOR SEARCH + IMPORT CSV ===
+// Paste this at the very bottom of script.js
+
+document.addEventListener('DOMContentLoaded', () => {
+  console.log("listener setup starting...");
+
+  const searchInput = document.querySelector('#search');
+  const importBtn   = document.querySelector('#importCsvBtn');
+  const fileInput   = document.querySelector('#csvFile');
+
+  if (!searchInput) console.error("Missing #search");
+  if (!importBtn)   console.error("Missing #importCsvBtn");
+  if (!fileInput)   console.error("Missing #csvFile");
+
+  // ---- SEARCH ----
+  searchInput?.addEventListener('input', () => {
+    const q = searchInput.value.toLowerCase();
+    const rows = window.GLOSSARY_DATA;
+
+    const filtered = rows.filter(r =>
+      (r.term || "").toLowerCase().includes(q) ||
+      (r.full_form || "").toLowerCase().includes(q) ||
+      (r.definition || "").toLowerCase().includes(q) ||
+      (r.context || "").toLowerCase().includes(q) ||
+      (r.tags || "").toLowerCase().includes(q)
+    );
+
+    renderTable(filtered);
+  });
+
+  // ---- IMPORT CSV ----
+  importBtn?.addEventListener('click', () => fileInput.click());
+
+  fileInput?.addEventListener('change', async () => {
+    const file = fileInput.files[0];
+    if (!file) return;
+
+    const text = await file.text();
+    const rows = parseCsvToGlossary(text);
+
+    window.GLOSSARY_DATA = [...rows, ...window.GLOSSARY_DATA];
+    renderTable(window.GLOSSARY_DATA);
+
+    alert(`Imported ${rows.length} items`);
+    fileInput.value = "";
+  });
+
+  console.log("listeners attached ✅");
+});
+
+
+// Converts CSV → glossary objects
+function parseCsvToGlossary(text) {
+  const lines = text.split(/\r?\n/).filter(Boolean);
+  if (lines.length < 2) return [];
+
+  const header = lines.shift().split(',').map(h => h.trim().toLowerCase());
+
+  const iTerm = header.indexOf('term');
+  const iFull = header.indexOf('full_form');
+  const iDef  = header.indexOf('definition');
+  const iContext = header.indexOf('context');
+  const iTags = header.indexOf('tags');
+
+  return lines.map(l => {
+    const parts = l.split(',');
+
+    return {
+      term: parts[iTerm] || "",
+      full_form: parts[iFull] || "",
+      definition: parts[iDef] || "",
+      context: parts[iContext] || "",
+      tags: parts[iTags] || ""
+    };
+  });
+}
